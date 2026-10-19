@@ -224,7 +224,7 @@
       "title": "Traditional Fashion House",
       "kind": "Graduation project",
       "year": "Duhok",
-      "plate": true,
+      "plate": false,
       "lines": "Four acts in one building: learning, creating, exhibiting, and selling.",
       "text": "Graduation project at Catholic University in Erbil, sited in Duhok. The programme follows four acts, learning, creating, exhibiting, and selling, and the board carries the site analysis, sections, elevations, and renders.",
       "facts": [
@@ -243,7 +243,8 @@
       ],
       "images": [],
       "documents": [],
-      "videos": []
+      "videos": [],
+      "cover": "/uploads/9c8076cb-3301-4d5f-b44e-e7abb5dea04f-li_chen_front.jpg"
     },
     {
       "id": "landscape",
