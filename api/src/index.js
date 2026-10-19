@@ -116,11 +116,11 @@ function githubHeaders(env) {
 }
 
 function repoApi(env, filePath) {
-  return `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${filePath}`;
+  return "https://api.github.com/repos/" + env.GITHUB_OWNER + "/" + env.GITHUB_REPO + "/contents/" + filePath;
 }
 
 async function githubGet(env, filePath) {
-  const res = await fetch(`${repoApi(env, filePath)}?ref=${env.GITHUB_BRANCH || "main"}`, { headers: githubHeaders(env) });
+  const res = await fetch(repoApi(env, filePath) + "?ref=" + (env.GITHUB_BRANCH || "main"), { headers: githubHeaders(env) });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`GitHub read failed (${res.status})`);
   return res.json();
@@ -143,7 +143,7 @@ async function githubPut(env, filePath, contentBase64, message, sha) {
 }
 
 function publicFileUrl(env, filePath) {
-  return `https://raw.githubusercontent.com/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/${env.GITHUB_BRANCH || "main"}/${filePath}`;
+  return "https://raw.githubusercontent.com/" + env.GITHUB_OWNER + "/" + env.GITHUB_REPO + "/" + (env.GITHUB_BRANCH || "main") + "/" + filePath;
 }
 
 export default {
@@ -207,7 +207,7 @@ export default {
       const name = safeName(url.searchParams.get("name") || "upload");
       const buffer = await request.arrayBuffer();
       const filePath = `public/uploads/${crypto.randomUUID()}-${name}`;
-      await githubPut(env, filePath, toBase64(buffer), `studio: upload ${name}`);
+      await githubPut(env, filePath, toBase64(buffer), "studio: upload " + name);
       return json({ url: publicFileUrl(env, filePath), path: filePath }, 200, origin, env);
     }
 

@@ -20,6 +20,32 @@
       </form>
     </div>
 
+    <div class="login" id="setup" hidden>
+      <form class="gate wide-gate" id="setup-form" autocomplete="off">
+        <p class="mark">NO</p>
+        <h1>First key</h1>
+        <p class="sub">
+          Create the studio password once. After this, the client only needs the username and
+          password. The GitHub token stays locked inside the password and is never shown again.
+        </p>
+        <label>GitHub owner <input id="setup-owner" type="text" required /></label>
+        <label>Repository <input id="setup-repo" type="text" required /></label>
+        <label>
+          GitHub token
+          <input id="setup-token" type="password" required autocomplete="off" />
+        </label>
+        <p class="tiny">
+          Fine-grained token on this repo only, permission: Contents Read and write. Create it at
+          github.com/settings/personal-access-tokens
+        </p>
+        <label>Admin username <input id="setup-user" type="text" required autocomplete="off" /></label>
+        <label>Admin password <input id="setup-pass" type="password" required minlength="12" autocomplete="new-password" /></label>
+        <label>Confirm password <input id="setup-pass2" type="password" required minlength="12" autocomplete="new-password" /></label>
+        <button class="btn" type="submit">Lock the studio</button>
+        <p class="err" id="setup-err" hidden></p>
+      </form>
+    </div>
+
     <div class="desk" id="desk" hidden>
       <header class="bar">
         <p class="mark">NO</p>

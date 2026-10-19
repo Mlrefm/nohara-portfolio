@@ -2,8 +2,8 @@ node_modules
 dist
 dev.log
 public/frames
-public/uploads
 .env
 .env.local
 api/node_modules
 api/.wrangler
+api/script.b64

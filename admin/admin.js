@@ -1,7 +1,18 @@
 import "./admin.css";
 
 const TOKEN_KEY = "nohara-studio";
-const state = { content: null, token: sessionStorage.getItem(TOKEN_KEY) || "", api: "", projectIndex: -1 };
+const LOCK_NAME = "studio.lock.json";
+const FAIL_KEY = "nohara-studio-fails";
+const state = {
+  content: null,
+  token: sessionStorage.getItem(TOKEN_KEY) || "",
+  api: "",
+  mode: "",
+  github: null,
+  lock: null,
+  pat: "",
+  projectIndex: -1,
+};
 
 const $ = (id) => document.getElementById(id);
 const splitList = (value) =>
@@ -10,25 +21,113 @@ const splitList = (value) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
-async function resolveApi() {
-  if (import.meta.env.VITE_ADMIN_API) return import.meta.env.VITE_ADMIN_API.replace(/\/$/, "");
+const bytesToB64 = (bytes) => btoa(String.fromCharCode(...bytes));
+const b64ToBytes = (value) => Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+
+function textToB64(text) {
+  return btoa(unescape(encodeURIComponent(text)));
+}
+
+async function fileToB64(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  const step = 0x8000;
+  for (let i = 0; i < bytes.length; i += step) binary += String.fromCharCode(...bytes.subarray(i, i + step));
+  return btoa(binary);
+}
+
+async function deriveKey(password, salt, iterations) {
+  const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+async function wrapToken(password, token) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(password, salt, 210_000);
+  const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(token)));
+  return { salt: bytesToB64(salt), iv: bytesToB64(iv), wrap: bytesToB64(sealed), iter: 210_000 };
+}
+
+async function unwrapToken(password, lock) {
+  const key = await deriveKey(password, b64ToBytes(lock.salt), lock.iter || 210_000);
+  const open = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64ToBytes(lock.iv) }, key, b64ToBytes(lock.wrap));
+  return new TextDecoder().decode(open);
+}
+
+async function shaHex(value) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function loadConfig() {
+  const res = await fetch(`${import.meta.env.BASE_URL}admin-config.json`, { cache: "no-store" });
+  return res.ok ? res.json() : {};
+}
+
+async function resolveApi(config) {
+  const envApi = import.meta.env.VITE_ADMIN_API;
+  if (envApi === "github") return "";
+  if (envApi) return String(envApi).replace(/\/$/, "");
   if (import.meta.env.DEV) return "/__admin";
-  try {
-    const res = await fetch(`${import.meta.env.BASE_URL}admin-config.json`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.api) return String(data.api).replace(/\/$/, "");
-    }
-  } catch {
-    /* empty */
-  }
+  if (config.api) return String(config.api).replace(/\/$/, "");
   return "";
 }
 
+function githubHeaders() {
+  return {
+    Authorization: `Bearer ${state.pat}`,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+}
+
+function githubUrl(filePath) {
+  const { owner, repo, branch } = state.github;
+  return `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`;
+}
+
+async function githubGet(filePath) {
+  const res = await fetch(githubUrl(filePath), { headers: githubHeaders() });
+  if (res.status === 404) return null;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || `GitHub read failed (${res.status})`);
+  return data;
+}
+
+async function githubPut(filePath, contentBase64, message) {
+  const existing = await githubGet(filePath);
+  const res = await fetch(githubUrl(filePath).replace(/\?ref=.*$/, ""), {
+    method: "PUT",
+    headers: { ...githubHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      content: contentBase64,
+      branch: state.github.branch,
+      sha: existing?.sha,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || `GitHub write failed (${res.status})`);
+  return data;
+}
+
+function rawUrl(filePath) {
+  const { owner, repo, branch } = state.github;
+  return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
+}
+
 async function api(path, options = {}) {
+  if (state.mode === "github") return githubApi(path, options);
   const headers = { ...(options.headers || {}) };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
-  if (options.body && !(options.body instanceof Blob) && typeof options.body !== "string") {
+  if (options.body && !(options.body instanceof Blob) && !(options.body instanceof File) && typeof options.body !== "string") {
     headers["Content-Type"] = "application/json";
     options.body = JSON.stringify(options.body);
   }
@@ -47,12 +146,62 @@ async function api(path, options = {}) {
   return data;
 }
 
+async function githubApi(path, options = {}) {
+  const method = options.method || "GET";
+  if (path === "/login") {
+    const fails = JSON.parse(sessionStorage.getItem(FAIL_KEY) || "[]").filter((t) => Date.now() - t < 15 * 60_000);
+    if (fails.length >= 8) throw new Error("Too many attempts. Try again in a few minutes.");
+    const body = options.body;
+    try {
+      if (body.username !== state.lock.user) throw new Error("bad");
+      state.pat = await unwrapToken(body.password, state.lock);
+    } catch {
+      fails.push(Date.now());
+      sessionStorage.setItem(FAIL_KEY, JSON.stringify(fails));
+      throw new Error("Wrong username or password");
+    }
+    sessionStorage.removeItem(FAIL_KEY);
+    const probe = await fetch(githubUrl("public/content.json"), { headers: githubHeaders() });
+    if (probe.status === 401 || probe.status === 403) {
+      throw new Error("The GitHub token inside this password can no longer write to the repo.");
+    }
+    return { token: "github", hours: 12 };
+  }
+  if (path === "/content" && method === "GET") {
+    const file = await githubGet("public/content.json");
+    if (!file?.content) throw new Error("No content yet");
+    return JSON.parse(decodeURIComponent(escape(atob(file.content.replaceAll("\n", "")))));
+  }
+  if (path === "/content" && method === "PUT") {
+    const body = typeof options.body === "string" ? options.body : JSON.stringify(options.body, null, 2);
+    await githubPut("public/content.json", textToB64(body), "studio: update site content");
+    return { ok: true };
+  }
+  if (path.startsWith("/upload") && method === "POST") {
+    const url = new URL(path, "https://studio.local");
+    const name = safeName(url.searchParams.get("name") || "upload");
+    const filePath = `public/uploads/${crypto.randomUUID()}-${name}`;
+    await githubPut(filePath, await fileToB64(options.body), `studio: upload ${name}`);
+    const fileName = filePath.split("/").pop();
+    return { url: `/uploads/${fileName}`, path: filePath, raw: rawUrl(filePath) };
+  }
+  throw new Error("Not found");
+}
+
+function safeName(name) {
+  return String(name || "file")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 80);
+}
+
 function setStatus(message) {
   $("status").textContent = message;
 }
 
 function signOut() {
   state.token = "";
+  state.pat = "";
   sessionStorage.removeItem(TOKEN_KEY);
   $("desk").hidden = true;
   $("login").hidden = false;
@@ -98,9 +247,9 @@ function renderExperience() {
     ...state.content.experience.map((item, index) => {
       const article = document.createElement("article");
       article.innerHTML = `
-        <label>When <input data-k="when" value=""></label>
-        <label>Title <input data-k="title" value=""></label>
-        <label>Place <input data-k="place" value=""></label>
+        <label>When <input data-k="when"></label>
+        <label>Title <input data-k="title"></label>
+        <label>Place <input data-k="place"></label>
         <label>Text <textarea data-k="text" rows="3"></textarea></label>
         <div class="row-actions">
           <button class="text-btn" type="button" data-move="-1">Up</button>
@@ -170,7 +319,7 @@ function renderProjects() {
 function fileButton(label, onClick) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "text-btn";
+  button.className = "text-btn danger";
   button.textContent = label;
   button.onclick = onClick;
   return button;
@@ -181,10 +330,12 @@ function renderGallery(project) {
     ...(project.images || []).map((src, index) => {
       const figure = document.createElement("figure");
       figure.innerHTML = `<img alt="" src="${src}">`;
-      figure.append(fileButton("ª", () => {
-        project.images.splice(index, 1);
-        renderGallery(project);
-      }));
+      figure.append(
+        fileButton("Remove", () => {
+          project.images.splice(index, 1);
+          renderGallery(project);
+        }),
+      );
       return figure;
     }),
   );
@@ -205,10 +356,14 @@ function renderVideos(project) {
       start.oninput = () => {
         clip.start = Number(start.value) || 0;
       };
-      article.append(name, start, fileButton("ª", () => {
-        project.videos.splice(index, 1);
-        renderVideos(project);
-      }));
+      article.append(
+        name,
+        start,
+        fileButton("Remove", () => {
+          project.videos.splice(index, 1);
+          renderVideos(project);
+        }),
+      );
       return article;
     }),
   );
@@ -218,11 +373,12 @@ function renderDocs(project) {
   $("p-docs").replaceChildren(
     ...(project.documents || []).map((doc, index) => {
       const article = document.createElement("article");
+      article.style.gridTemplateColumns = "1fr auto";
       const name = document.createElement("span");
       name.textContent = doc.name || doc.src;
       article.append(
         name,
-        fileButton("ª", () => {
+        fileButton("Remove", () => {
           project.documents.splice(index, 1);
           renderDocs(project);
         }),
@@ -251,7 +407,7 @@ function renderFacts(project) {
       article.append(
         key,
         value,
-        fileButton("ª", () => {
+        fileButton("Remove", () => {
           project.facts.splice(index, 1);
           renderFacts(project);
         }),
@@ -307,6 +463,7 @@ function slug(value) {
 }
 
 async function uploadFile(file) {
+  if (file.size > 20 * 1024 * 1024) throw new Error(`${file.name} is larger than 20 MB`);
   setStatus(`Uploading ${file.name}…`);
   document.body.classList.add("busy");
   try {
@@ -336,6 +493,7 @@ async function loadDesk() {
   renderGroups();
   renderProjects();
   $("login").hidden = true;
+  $("setup").hidden = true;
   $("desk").hidden = false;
 }
 
@@ -415,59 +573,67 @@ $("delete-project").onclick = () => {
   $("sheet").close();
 };
 
-$("portrait-file").onchange = async (event) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  state.content.site.portrait = await uploadFile(file);
-  $("portrait-preview").src = state.content.site.portrait;
-};
-
-$("cv-file").onchange = async (event) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  state.content.site.cv = await uploadFile(file);
-  $("cv-name").textContent = file.name;
-};
-
-$("p-cover").onchange = async (event) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  const project = state.content.projects[state.projectIndex];
-  project.cover = await uploadFile(file);
-  $("p-cover-preview").src = project.cover;
-  project.plate = false;
-  $("p-plate").checked = false;
-};
-
-$("p-images").onchange = async (event) => {
-  const files = [...(event.target.files || [])];
-  const project = state.content.projects[state.projectIndex];
-  for (const file of files) project.images.push(await uploadFile(file));
-  renderGallery(project);
-  event.target.value = "";
-};
-
-$("p-video-files").onchange = async (event) => {
-  const files = [...(event.target.files || [])];
-  const project = state.content.projects[state.projectIndex];
-  for (const file of files) {
-    const src = await uploadFile(file);
-    project.videos.push({ src, start: 0, poster: project.cover || "" });
+async function onUpload(input, apply) {
+  const files = [...(input.files || [])];
+  try {
+    await apply(files);
+  } catch (error) {
+    setStatus(error.message);
+    window.alert(error.message);
   }
-  renderVideos(project);
-  event.target.value = "";
-};
+  input.value = "";
+}
 
-$("p-doc-files").onchange = async (event) => {
-  const files = [...(event.target.files || [])];
-  const project = state.content.projects[state.projectIndex];
-  for (const file of files) {
-    const src = await uploadFile(file);
-    project.documents.push({ name: file.name, src });
-  }
-  renderDocs(project);
-  event.target.value = "";
-};
+$("portrait-file").onchange = (event) =>
+  onUpload(event.target, async ([file]) => {
+    if (!file) return;
+    state.content.site.portrait = await uploadFile(file);
+    $("portrait-preview").src = state.content.site.portrait;
+  });
+
+$("cv-file").onchange = (event) =>
+  onUpload(event.target, async ([file]) => {
+    if (!file) return;
+    state.content.site.cv = await uploadFile(file);
+    $("cv-name").textContent = file.name;
+  });
+
+$("p-cover").onchange = (event) =>
+  onUpload(event.target, async ([file]) => {
+    if (!file) return;
+    const project = state.content.projects[state.projectIndex];
+    project.cover = await uploadFile(file);
+    $("p-cover-preview").src = project.cover;
+    project.plate = false;
+    $("p-plate").checked = false;
+  });
+
+$("p-images").onchange = (event) =>
+  onUpload(event.target, async (files) => {
+    const project = state.content.projects[state.projectIndex];
+    for (const file of files) project.images.push(await uploadFile(file));
+    renderGallery(project);
+  });
+
+$("p-video-files").onchange = (event) =>
+  onUpload(event.target, async (files) => {
+    const project = state.content.projects[state.projectIndex];
+    for (const file of files) {
+      const src = await uploadFile(file);
+      project.videos.push({ src, start: 0, poster: project.cover || "" });
+    }
+    renderVideos(project);
+  });
+
+$("p-doc-files").onchange = (event) =>
+  onUpload(event.target, async (files) => {
+    const project = state.content.projects[state.projectIndex];
+    for (const file of files) {
+      const src = await uploadFile(file);
+      project.documents.push({ name: file.name, src });
+    }
+    renderDocs(project);
+  });
 
 $("publish").onclick = async () => {
   readProfile();
@@ -477,25 +643,91 @@ $("publish").onclick = async () => {
   setStatus("Publishing…");
   try {
     await api("/content", { method: "PUT", body: state.content });
-    setStatus("Live");
+    setStatus(state.mode === "github" ? "Saved. The live site updates in about a minute." : "Live");
   } catch (error) {
     setStatus(error.message);
   }
 };
 
-async function start() {
-  state.api = await resolveApi();
-  if (!state.api) {
-    $("login-err").hidden = false;
-    $("login-err").textContent = "The studio API is not connected yet.";
+$("setup-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  $("setup-err").hidden = true;
+  const password = $("setup-pass").value;
+  if (password !== $("setup-pass2").value) {
+    $("setup-err").hidden = false;
+    $("setup-err").textContent = "The two passwords do not match.";
+    return;
   }
-  if (state.token && state.api) {
+  state.github = {
+    owner: $("setup-owner").value.trim(),
+    repo: $("setup-repo").value.trim(),
+    branch: "main",
+  };
+  state.pat = $("setup-token").value.trim();
+  state.mode = "github";
+  try {
+    const probe = await fetch(githubUrl("public/content.json"), { headers: githubHeaders() });
+    if (probe.status === 401 || probe.status === 403) throw new Error("That GitHub token cannot read this repository.");
+    const sealed = await wrapToken(password, state.pat);
+    const lock = {
+      v: 1,
+      user: $("setup-user").value.trim(),
+      userHash: await shaHex($("setup-user").value.trim()),
+      ...sealed,
+    };
+    await githubPut(`public/${LOCK_NAME}`, textToB64(JSON.stringify(lock, null, 2)), "studio: create lock");
+    state.lock = lock;
+    state.token = "github";
+    sessionStorage.setItem(TOKEN_KEY, "github");
+    await loadDesk();
+    setStatus("Studio locked. Give the client only the username and password.");
+  } catch (error) {
+    $("setup-err").hidden = false;
+    $("setup-err").textContent = error.message;
+  }
+});
+
+async function loadLock() {
+  const urls = [`${import.meta.env.BASE_URL}${LOCK_NAME}`];
+  if (state.github?.owner && state.github?.repo) urls.push(rawUrl(`public/${LOCK_NAME}`));
+  for (const url of urls) {
     try {
-      await loadDesk();
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok) return await res.json();
     } catch {
-      signOut();
+      /* try next */
     }
   }
+  return null;
+}
+
+async function start() {
+  const config = await loadConfig();
+  state.github = config.github || { owner: "Mlrefm", repo: "nohara-portfolio", branch: "main" };
+  $("setup-owner").value = state.github.owner || "";
+  $("setup-repo").value = state.github.repo || "";
+  state.api = await resolveApi(config);
+  if (state.api) {
+    state.mode = "worker";
+    if (state.token) {
+      try {
+        await loadDesk();
+      } catch {
+        signOut();
+      }
+    }
+    return;
+  }
+  state.mode = "github";
+  state.lock = await loadLock();
+  if (state.lock) {
+    $("setup").hidden = true;
+    $("login").hidden = false;
+    if (state.token === "github") signOut();
+    return;
+  }
+  $("login").hidden = true;
+  $("setup").hidden = false;
 }
 
 start();

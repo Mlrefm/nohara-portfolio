@@ -1,0 +1,9 @@
+name = "nohara-studio"
+main = "src/index.js"
+compatibility_date = "2026-01-15"
+
+[vars]
+GITHUB_OWNER = "Mlrefm"
+GITHUB_REPO = "nohara-portfolio"
+GITHUB_BRANCH = "main"
+ALLOWED_ORIGINS = "https://mlrefm.github.io"

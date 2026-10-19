@@ -69,6 +69,19 @@ textarea:focus-visible {
   padding: 1.5rem;
 }
 
+.tiny {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.45;
+}
+
+.gate.wide-gate {
+  width: min(520px, 100%);
+}
+
 .gate {
   width: min(420px, 100%);
   padding: 2.4rem 2rem 2rem;
@@ -483,7 +496,7 @@ textarea {
 
 .list article {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr 5.5rem auto;
   gap: 0.5rem;
   align-items: center;
   margin-top: 0.45rem;

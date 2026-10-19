@@ -17,10 +17,16 @@ async function loadContent() {
   const urls = [];
   if (import.meta.env.VITE_ADMIN_API) urls.push(`${import.meta.env.VITE_ADMIN_API.replace(/\/$/, "")}/content`);
   try {
-    const config = await fetch(`${BASE}/admin-config.json`);
+    const config = await fetch(`${BASE}/admin-config.json`, { cache: "no-store" });
     if (config.ok) {
       const data = await config.json();
       if (data.api) urls.unshift(`${String(data.api).replace(/\/$/, "")}/content`);
+      if (data.github?.owner && data.github?.repo) {
+        const branch = data.github.branch || "main";
+        urls.push(
+          `https://raw.githubusercontent.com/${data.github.owner}/${data.github.repo}/${branch}/public/content.json`,
+        );
+      }
     }
   } catch {
     /* static file is enough */
@@ -793,7 +799,7 @@ function tick(time) {
 function applySite(data) {
   if (!data) return;
   const site = data.site || {};
-  if (site.hudLabel) $("#hud-label").textContent = site.hudLabel;
+  if (site.hudLabel && $("#hud-label")) $("#hud-label").textContent = site.hudLabel;
   if (site.eyebrow) $("#site-eyebrow").textContent = site.eyebrow;
   if (site.nameHtml) $("#site-name").innerHTML = site.nameHtml;
   if (site.lede) $("#site-lede").textContent = site.lede;
