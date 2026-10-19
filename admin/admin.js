@@ -94,28 +94,42 @@ function githubUrl(filePath) {
 }
 
 async function githubGet(filePath) {
-  const res = await fetch(githubUrl(filePath), { headers: githubHeaders() });
+  const res = await fetch(githubUrl(filePath), {
+    headers: { ...githubHeaders(), "Cache-Control": "no-store" },
+    cache: "no-store",
+  });
   if (res.status === 404) return null;
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || `GitHub read failed (${res.status})`);
   return data;
 }
 
+function isShaConflict(status, message) {
+  return status === 409 || /does not match|sha/i.test(String(message || ""));
+}
+
 async function githubPut(filePath, contentBase64, message) {
-  const existing = await githubGet(filePath);
-  const res = await fetch(githubUrl(filePath).replace(/\?ref=.*$/, ""), {
-    method: "PUT",
-    headers: { ...githubHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify({
+  let lastError = "GitHub write failed";
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const existing = await githubGet(filePath);
+    const body = {
       message,
       content: contentBase64,
-      branch: state.github.branch,
-      sha: existing?.sha,
-    }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || `GitHub write failed (${res.status})`);
-  return data;
+      branch: state.github.branch || "main",
+    };
+    if (existing?.sha) body.sha = existing.sha;
+    const res = await fetch(githubUrl(filePath).replace(/\?ref=.*$/, ""), {
+      method: "PUT",
+      headers: { ...githubHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return data;
+    lastError = data.message || `GitHub write failed (${res.status})`;
+    if (!isShaConflict(res.status, lastError) || attempt === 4) break;
+    await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+  }
+  throw new Error(lastError);
 }
 
 function rawUrl(filePath) {

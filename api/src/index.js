@@ -120,26 +120,42 @@ function repoApi(env, filePath) {
 }
 
 async function githubGet(env, filePath) {
-  const res = await fetch(repoApi(env, filePath) + "?ref=" + (env.GITHUB_BRANCH || "main"), { headers: githubHeaders(env) });
+  const res = await fetch(repoApi(env, filePath) + "?ref=" + (env.GITHUB_BRANCH || "main"), {
+    headers: { ...githubHeaders(env), "Cache-Control": "no-store" },
+    cache: "no-store",
+  });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`GitHub read failed (${res.status})`);
   return res.json();
 }
 
 async function githubPut(env, filePath, contentBase64, message, sha) {
-  const res = await fetch(repoApi(env, filePath), {
-    method: "PUT",
-    headers: { ...githubHeaders(env), "Content-Type": "application/json" },
-    body: JSON.stringify({
+  let currentSha = sha;
+  let lastError = "GitHub write failed";
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    if (attempt > 0 || !currentSha) {
+      const existing = await githubGet(env, filePath);
+      currentSha = existing?.sha;
+    }
+    const payload = {
       message,
       content: contentBase64,
       branch: env.GITHUB_BRANCH || "main",
-      sha: sha || undefined,
-    }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || `GitHub write failed (${res.status})`);
-  return data;
+    };
+    if (currentSha) payload.sha = currentSha;
+    const res = await fetch(repoApi(env, filePath), {
+      method: "PUT",
+      headers: { ...githubHeaders(env), "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return data;
+    lastError = data.message || `GitHub write failed (${res.status})`;
+    if (!(res.status === 409 || /does not match|sha/i.test(lastError)) || attempt === 4) break;
+    currentSha = null;
+    await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+  }
+  throw new Error(lastError);
 }
 
 function publicFileUrl(env, filePath) {
