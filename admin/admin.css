@@ -161,6 +161,13 @@ textarea {
   margin-top: 1.4rem;
 }
 
+.gate .text-btn {
+  display: block;
+  width: 100%;
+  margin-top: 0.9rem;
+  text-align: center;
+}
+
 .err {
   margin: 0.9rem 0 0;
   color: #e8b4a2;

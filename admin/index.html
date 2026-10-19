@@ -16,7 +16,27 @@
         <label>Username <input id="user" name="username" type="text" autocomplete="username" required /></label>
         <label>Password <input id="pass" name="password" type="password" autocomplete="current-password" required /></label>
         <button class="btn" type="submit">Enter</button>
+        <button class="text-btn" id="open-rekey" type="button">Replace GitHub token</button>
         <p class="err" id="login-err" hidden></p>
+      </form>
+    </div>
+
+    <div class="login" id="rekey" hidden>
+      <form class="gate wide-gate" id="rekey-form" autocomplete="off">
+        <p class="mark">NO</p>
+        <h1>New token</h1>
+        <p class="sub">
+          If Publish shows Failed to fetch, the GitHub token was revoked or expired. Create a new
+          fine-grained token (Contents: Read and write), then lock it again with the same studio
+          username and password.
+        </p>
+        <label>Admin username <input id="rekey-user" type="text" required autocomplete="username" /></label>
+        <label>Admin password <input id="rekey-pass" type="password" required autocomplete="current-password" /></label>
+        <label>New GitHub token <input id="rekey-token" type="password" required autocomplete="off" /></label>
+        <p class="tiny">Never paste the token in chat. Paste it only in this box.</p>
+        <button class="btn" type="submit">Save new token</button>
+        <button class="text-btn" id="rekey-back" type="button">Back to sign in</button>
+        <p class="err" id="rekey-err" hidden></p>
       </form>
     </div>
 

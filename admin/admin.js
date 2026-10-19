@@ -93,8 +93,24 @@ function githubUrl(filePath) {
   return `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`;
 }
 
+function networkHint(error) {
+  const message = String(error?.message || error || "");
+  if (/failed to fetch|networkerror|load failed/i.test(message)) {
+    return "Failed to fetch: the GitHub token is probably revoked or blocked. On the sign-in screen choose Replace GitHub token, create a new fine-grained token (Contents: Read and write), and save it. Do not paste the token in chat.";
+  }
+  return message;
+}
+
+async function githubFetch(url, options = {}) {
+  try {
+    return await fetch(url, options);
+  } catch (error) {
+    throw new Error(networkHint(error));
+  }
+}
+
 async function githubGet(filePath) {
-  const res = await fetch(githubUrl(filePath), {
+  const res = await githubFetch(githubUrl(filePath), {
     headers: { ...githubHeaders(), "Cache-Control": "no-store" },
     cache: "no-store",
   });
@@ -118,18 +134,27 @@ async function githubPut(filePath, contentBase64, message) {
       branch: state.github.branch || "main",
     };
     if (existing?.sha) body.sha = existing.sha;
-    const res = await fetch(githubUrl(filePath).replace(/\?ref=.*$/, ""), {
-      method: "PUT",
-      headers: { ...githubHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    let res;
+    try {
+      res = await githubFetch(githubUrl(filePath).replace(/\?ref=.*$/, ""), {
+        method: "PUT",
+        headers: { ...githubHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      lastError = error.message;
+      break;
+    }
     const data = await res.json().catch(() => ({}));
     if (res.ok) return data;
+    if (res.status === 401 || res.status === 403) {
+      throw new Error("GitHub rejected the token. Use Replace GitHub token on the sign-in screen.");
+    }
     lastError = data.message || `GitHub write failed (${res.status})`;
     if (!isShaConflict(res.status, lastError) || attempt === 4) break;
     await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
   }
-  throw new Error(lastError);
+  throw new Error(networkHint(lastError));
 }
 
 function rawUrl(filePath) {
@@ -175,9 +200,14 @@ async function githubApi(path, options = {}) {
       throw new Error("Wrong username or password");
     }
     sessionStorage.removeItem(FAIL_KEY);
-    const probe = await fetch(githubUrl("public/content.json"), { headers: githubHeaders() });
+    let probe;
+    try {
+      probe = await githubFetch(githubUrl("public/content.json"), { headers: githubHeaders() });
+    } catch (error) {
+      throw new Error(networkHint(error));
+    }
     if (probe.status === 401 || probe.status === 403) {
-      throw new Error("The GitHub token inside this password can no longer write to the repo.");
+      throw new Error("The GitHub token inside this password can no longer write to the repo. Use Replace GitHub token.");
     }
     return { token: "github", hours: 12 };
   }
@@ -213,12 +243,18 @@ function setStatus(message) {
   $("status").textContent = message;
 }
 
+function showLogin() {
+  $("desk").hidden = true;
+  $("setup").hidden = true;
+  $("rekey").hidden = true;
+  $("login").hidden = false;
+}
+
 function signOut() {
   state.token = "";
   state.pat = "";
   sessionStorage.removeItem(TOKEN_KEY);
-  $("desk").hidden = true;
-  $("login").hidden = false;
+  showLogin();
 }
 
 function fillProfile() {
@@ -663,6 +699,54 @@ $("publish").onclick = async () => {
   }
 };
 
+$("open-rekey").onclick = () => {
+  $("login").hidden = true;
+  $("rekey").hidden = false;
+  $("rekey-err").hidden = true;
+  if (state.lock?.user) $("rekey-user").value = state.lock.user;
+};
+
+$("rekey-back").onclick = () => showLogin();
+
+$("rekey-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  $("rekey-err").hidden = true;
+  const username = $("rekey-user").value.trim();
+  const password = $("rekey-pass").value;
+  const token = $("rekey-token").value.trim();
+  if (!state.lock) {
+    $("rekey-err").hidden = false;
+    $("rekey-err").textContent = "No studio lock found. Use First key setup.";
+    return;
+  }
+  try {
+    if (username !== state.lock.user) throw new Error("Wrong username or password");
+    await unwrapToken(password, state.lock);
+    state.pat = token;
+    state.mode = "github";
+    const probe = await githubFetch(githubUrl("public/content.json"), { headers: githubHeaders() });
+    if (probe.status === 401 || probe.status === 403) {
+      throw new Error("That GitHub token cannot access this repository. Check Contents: Read and write.");
+    }
+    const sealed = await wrapToken(password, token);
+    const lock = {
+      v: 1,
+      user: username,
+      userHash: await shaHex(username),
+      ...sealed,
+    };
+    await githubPut(`public/${LOCK_NAME}`, textToB64(JSON.stringify(lock, null, 2)), "studio: replace lock token");
+    state.lock = lock;
+    state.token = "github";
+    sessionStorage.setItem(TOKEN_KEY, "github");
+    await loadDesk();
+    setStatus("New GitHub token saved.");
+  } catch (error) {
+    $("rekey-err").hidden = false;
+    $("rekey-err").textContent = networkHint(error);
+  }
+});
+
 $("setup-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   $("setup-err").hidden = true;
@@ -680,7 +764,7 @@ $("setup-form").addEventListener("submit", async (event) => {
   state.pat = $("setup-token").value.trim();
   state.mode = "github";
   try {
-    const probe = await fetch(githubUrl("public/content.json"), { headers: githubHeaders() });
+    const probe = await githubFetch(githubUrl("public/content.json"), { headers: githubHeaders() });
     if (probe.status === 401 || probe.status === 403) throw new Error("That GitHub token cannot read this repository.");
     const sealed = await wrapToken(password, state.pat);
     const lock = {
@@ -697,7 +781,7 @@ $("setup-form").addEventListener("submit", async (event) => {
     setStatus("Studio locked. Give the client only the username and password.");
   } catch (error) {
     $("setup-err").hidden = false;
-    $("setup-err").textContent = error.message;
+    $("setup-err").textContent = networkHint(error);
   }
 });
 
@@ -735,12 +819,15 @@ async function start() {
   state.mode = "github";
   state.lock = await loadLock();
   if (state.lock) {
-    $("setup").hidden = true;
-    $("login").hidden = false;
-    if (state.token === "github") signOut();
+    showLogin();
+    if (state.token === "github") {
+      state.token = "";
+      sessionStorage.removeItem(TOKEN_KEY);
+    }
     return;
   }
   $("login").hidden = true;
+  $("rekey").hidden = true;
   $("setup").hidden = false;
 }
 
