@@ -96,7 +96,7 @@ function githubUrl(filePath) {
 function networkHint(error) {
   const message = String(error?.message || error || "");
   if (/failed to fetch|networkerror|load failed/i.test(message)) {
-    return "Failed to fetch: the GitHub token is probably revoked or blocked. On the sign-in screen choose Replace GitHub token, create a new fine-grained token (Contents: Read and write), and save it. Do not paste the token in chat.";
+    return "Network error talking to GitHub. Sign out, sign in again with your studio password, then retry. If it still fails, open Advanced ? Replace GitHub token (do not paste the token in chat). Large photos: use under 8 MB.";
   }
   return message;
 }
@@ -148,7 +148,10 @@ async function githubPut(filePath, contentBase64, message) {
     const data = await res.json().catch(() => ({}));
     if (res.ok) return data;
     if (res.status === 401 || res.status === 403) {
-      throw new Error("GitHub rejected the token. Use Replace GitHub token on the sign-in screen.");
+      throw new Error("GitHub rejected the token. Open Advanced ? Replace GitHub token on the sign-in screen.");
+    }
+    if (res.status === 413 || /too large|size limit/i.test(String(data.message || ""))) {
+      throw new Error("That file is too large for GitHub upload. Use an image under 8 MB.");
     }
     lastError = data.message || `GitHub write failed (${res.status})`;
     if (!isShaConflict(res.status, lastError) || attempt === 4) break;
@@ -512,15 +515,39 @@ function slug(value) {
   );
 }
 
+async function compressImage(file) {
+  if (!file.type.startsWith("image/") || file.type === "image/svg+xml") return file;
+  if (file.size <= 900_000) return file;
+  const bitmap = await createImageBitmap(file);
+  const maxEdge = 2000;
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+  if (!blob || blob.size >= file.size) return file;
+  const base = file.name.replace(/\.[^.]+$/, "") || "image";
+  return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+}
+
 async function uploadFile(file) {
-  if (file.size > 20 * 1024 * 1024) throw new Error(`${file.name} is larger than 20 MB`);
-  setStatus(`Uploading ${file.name}…`);
+  let payload = file;
+  if (file.type.startsWith("image/")) payload = await compressImage(file);
+  if (payload.size > 8 * 1024 * 1024) {
+    throw new Error(`${file.name} is larger than 8 MB after compression. Use a smaller file.`);
+  }
+  setStatus(`Uploading ${payload.name}...`);
   document.body.classList.add("busy");
   try {
-    const data = await api(`/upload?name=${encodeURIComponent(file.name)}&type=${encodeURIComponent(file.type || "application/octet-stream")}`, {
+    const data = await api(`/upload?name=${encodeURIComponent(payload.name)}&type=${encodeURIComponent(payload.type || "application/octet-stream")}`, {
       method: "POST",
-      headers: { "Content-Type": file.type || "application/octet-stream" },
-      body: file,
+      headers: { "Content-Type": payload.type || "application/octet-stream" },
+      body: payload,
     });
     setStatus("Uploaded");
     return data.url;
@@ -544,6 +571,7 @@ async function loadDesk() {
   renderProjects();
   $("login").hidden = true;
   $("setup").hidden = true;
+  $("rekey").hidden = true;
   $("desk").hidden = false;
 }
 

@@ -23,6 +23,11 @@
   box-sizing: border-box;
 }
 
+/* Author CSS must not override the hidden attribute (e.g. .login { display: grid }). */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -76,6 +81,23 @@ textarea:focus-visible {
   letter-spacing: 0;
   text-transform: none;
   line-height: 1.45;
+}
+
+.advanced {
+  margin-top: 1.25rem;
+  max-width: 28rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.advanced summary {
+  cursor: pointer;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+}
+
+.advanced .text-btn {
+  margin-top: 0.75rem;
 }
 
 .gate.wide-gate {

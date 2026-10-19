@@ -7,3 +7,6 @@ public/frames
 api/node_modules
 api/.wrangler
 api/script.b64
+
+_studio_creds.txt
+_lock_put.json

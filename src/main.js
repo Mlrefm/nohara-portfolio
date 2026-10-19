@@ -552,8 +552,8 @@ function buildFan() {
       suppressClick = false;
       return;
     }
-    if (index === active) openProject(index, button);
-    else setActive(index);
+    setActive(index);
+    openProject(index, button);
   });
   fan.append(button);
   return button;
@@ -689,8 +689,8 @@ function openProject(index, card) {
 
   const thumbs = $("#detail-thumbs");
   const entries = [];
-  if (project.videos) entries.push({ type: "video", poster: project.videos[0].poster });
-  for (const src of project.images) entries.push({ type: "image", src });
+  if (project.videos?.length) entries.push({ type: "video", poster: project.videos[0].poster });
+  for (const src of project.images || []) entries.push({ type: "image", src });
   thumbs.replaceChildren(
     ...entries.map((entry, entryIndex) => {
       const button = document.createElement("button");

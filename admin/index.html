@@ -16,8 +16,15 @@
         <label>Username <input id="user" name="username" type="text" autocomplete="username" required /></label>
         <label>Password <input id="pass" name="password" type="password" autocomplete="current-password" required /></label>
         <button class="btn" type="submit">Enter</button>
-        <button class="text-btn" id="open-rekey" type="button">Replace GitHub token</button>
         <p class="err" id="login-err" hidden></p>
+        <details class="advanced">
+          <summary>Advanced · replace GitHub token</summary>
+          <p class="tiny">
+            Only if Publish or upload fails after a revoked token. Day-to-day editing needs username
+            and password only — never paste the token here unless support asked you to.
+          </p>
+          <button class="text-btn" id="open-rekey" type="button">Replace GitHub token</button>
+        </details>
       </form>
     </div>
 
