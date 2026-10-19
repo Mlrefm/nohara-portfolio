@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "user": "nohara",
+  "userHash": "3d91a338307b8ab5240bf9bc697a7dea0019fdd3c05654b98dd23504ad8c7a47",
+  "salt": "UZXr6xLJcJCI1SlgT/kBJg==",
+  "iv": "ylu+NSb7FpQeKSj/",
+  "wrap": "sbRjbWnYNLELl3NNPmDSZBt5bHAHatIBCBw5oFnEu6zQJbU8DaGXa7NoVwcOnYVoCvDH1KsrbDaoSvYVFr4thuBB2FIzABWBx/UwQk5bvUfeKgaxhybZQIzFS8rM+ZBlIZnCa2HT2XRQ/BJexw==",
+  "iter": 210000
+}
