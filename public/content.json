@@ -188,7 +188,8 @@
         "/stills/hope-court.jpg",
         "/stills/hope-axis.jpg"
       ],
-      "documents": []
+      "documents": [],
+      "videos": []
     },
     {
       "id": "home-interior",
@@ -298,6 +299,20 @@
     },
     {
       "id": "project-f589ad8c",
+      "title": "New project",
+      "kind": "",
+      "year": "",
+      "plate": false,
+      "lines": "",
+      "text": "",
+      "cover": "/uploads/100bf2d6-aba1-454e-a3b9-c2c9653d0742-1000292132.jpg",
+      "images": [],
+      "videos": [],
+      "documents": [],
+      "facts": []
+    },
+    {
+      "id": "project-d92d7b76",
       "title": "New project",
       "kind": "",
       "year": "",
