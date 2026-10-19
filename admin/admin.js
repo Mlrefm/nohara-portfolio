@@ -110,8 +110,9 @@ async function githubFetch(url, options = {}) {
 }
 
 async function githubGet(filePath) {
+  // Do not send Cache-Control: browsers preflight it and GitHub CORS rejects that header ? Failed to fetch.
   const res = await githubFetch(githubUrl(filePath), {
-    headers: { ...githubHeaders(), "Cache-Control": "no-store" },
+    headers: githubHeaders(),
     cache: "no-store",
   });
   if (res.status === 404) return null;
