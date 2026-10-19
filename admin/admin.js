@@ -12,6 +12,10 @@ const state = {
   lock: null,
   pat: "",
   projectIndex: -1,
+  /** @type {Map<string, { base64: string, previewUrl: string }>} */
+  pendingFiles: new Map(),
+  /** @type {Map<string, string>} path in content.json ? blob: preview */
+  previewOverrides: new Map(),
 };
 
 const $ = (id) => document.getElementById(id);
@@ -125,6 +129,18 @@ function isShaConflict(status, message) {
   return status === 409 || /does not match|sha/i.test(String(message || ""));
 }
 
+async function githubJson(url, options = {}) {
+  const headers = { ...githubHeaders(), ...(options.headers || {}) };
+  if (options.body && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
+  const res = await githubFetch(url, { ...options, headers });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401 || res.status === 403) {
+    throw new Error("GitHub rejected the token. Open Advanced ? Replace GitHub token on the sign-in screen.");
+  }
+  if (!res.ok) throw new Error(data.message || `GitHub request failed (${res.status})`);
+  return data;
+}
+
 async function githubPut(filePath, contentBase64, message) {
   let lastError = "GitHub write failed";
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -159,6 +175,37 @@ async function githubPut(filePath, contentBase64, message) {
     await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
   }
   throw new Error(networkHint(lastError));
+}
+
+/** One git commit for many files ? much faster than Contents API per file. */
+async function commitFiles(files, message) {
+  const { owner, repo, branch } = state.github;
+  const base = `https://api.github.com/repos/${owner}/${repo}`;
+  const ref = await githubJson(`${base}/git/ref/heads/${branch}`);
+  const baseCommitSha = ref.object.sha;
+  const baseCommit = await githubJson(`${base}/git/commits/${baseCommitSha}`);
+  const treeItems = await Promise.all(
+    files.map(async (file) => {
+      const blob = await githubJson(`${base}/git/blobs`, {
+        method: "POST",
+        body: JSON.stringify({ content: file.contentBase64, encoding: "base64" }),
+      });
+      return { path: file.path, mode: "100644", type: "blob", sha: blob.sha };
+    }),
+  );
+  const tree = await githubJson(`${base}/git/trees`, {
+    method: "POST",
+    body: JSON.stringify({ base_tree: baseCommit.tree.sha, tree: treeItems }),
+  });
+  const commit = await githubJson(`${base}/git/commits`, {
+    method: "POST",
+    body: JSON.stringify({ message, tree: tree.sha, parents: [baseCommitSha] }),
+  });
+  await githubJson(`${base}/git/refs/heads/${branch}`, {
+    method: "PATCH",
+    body: JSON.stringify({ sha: commit.sha }),
+  });
+  return commit;
 }
 
 function rawUrl(filePath) {
@@ -225,18 +272,48 @@ async function githubApi(path, options = {}) {
   }
   if (path === "/content" && method === "PUT") {
     const body = typeof options.body === "string" ? options.body : JSON.stringify(options.body, null, 2);
-    await githubPut("public/content.json", textToB64(body), "studio: update site content");
+    const contentFile = { path: "public/content.json", contentBase64: textToB64(body) };
+    const pending = [...state.pendingFiles.entries()].map(([filePath, item]) => ({
+      path: filePath,
+      contentBase64: item.base64,
+    }));
+    if (pending.length) {
+      await commitFiles([...pending, contentFile], `studio: publish ${pending.length + 1} files`);
+      for (const item of state.pendingFiles.values()) {
+        try {
+          URL.revokeObjectURL(item.previewUrl);
+        } catch {
+          /* ignore */
+        }
+      }
+      state.pendingFiles.clear();
+      state.previewOverrides.clear();
+    } else {
+      await githubPut("public/content.json", contentFile.contentBase64, "studio: update site content");
+    }
     return { ok: true };
   }
   if (path.startsWith("/upload") && method === "POST") {
     const url = new URL(path, "https://studio.local");
     const name = safeName(url.searchParams.get("name") || "upload");
     const filePath = `public/uploads/${crypto.randomUUID()}-${name}`;
-    await githubPut(filePath, await fileToB64(options.body), `studio: upload ${name}`);
+    const base64 = await fileToB64(options.body);
+    const previewUrl = URL.createObjectURL(options.body);
     const fileName = filePath.split("/").pop();
-    return { url: `/uploads/${fileName}`, path: filePath, raw: rawUrl(filePath) };
+    const publicUrl = `/uploads/${fileName}`;
+    state.pendingFiles.set(filePath, { base64, previewUrl });
+    state.previewOverrides.set(publicUrl, previewUrl);
+    return { url: publicUrl, path: filePath, raw: rawUrl(filePath), pending: true };
   }
   throw new Error("Not found");
+}
+
+function mediaSrc(src) {
+  if (!src) return "";
+  if (state.previewOverrides.has(src)) return state.previewOverrides.get(src);
+  if (/^https?:\/\//.test(src) || src.startsWith("blob:")) return src;
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+  return `${base}${src.startsWith("/") ? src : `/${src}`}`;
 }
 
 function safeName(name) {
@@ -277,7 +354,7 @@ function fillProfile() {
   $("site-location").value = site.location || "";
   $("site-worklede").value = site.workLede || "";
   $("site-caption").value = site.portraitCaption || "";
-  $("portrait-preview").src = site.portrait || "";
+  $("portrait-preview").src = mediaSrc(site.portrait || "");
   $("cv-name").textContent = site.cv ? site.cv.split("/").pop() : "Upload PDF";
 }
 
@@ -386,7 +463,10 @@ function renderGallery(project) {
   $("p-gallery").replaceChildren(
     ...(project.images || []).map((src, index) => {
       const figure = document.createElement("figure");
-      figure.innerHTML = `<img alt="" src="${src}">`;
+      const img = document.createElement("img");
+      img.alt = "";
+      img.src = mediaSrc(src);
+      figure.append(img);
       figure.append(
         fileButton("Remove", () => {
           project.images.splice(index, 1);
@@ -485,7 +565,7 @@ function openProject(index) {
   $("p-lines").value = project.lines || "";
   $("p-text").value = project.text || "";
   $("p-plate").checked = Boolean(project.plate);
-  $("p-cover-preview").src = project.cover || "";
+  $("p-cover-preview").src = mediaSrc(project.cover || "");
   project.images = project.images || [];
   project.videos = project.videos || [];
   project.documents = project.documents || [];
@@ -545,7 +625,7 @@ async function uploadFile(file) {
   if (payload.size > 8 * 1024 * 1024) {
     throw new Error(`${file.name} is larger than 8 MB after compression. Use a smaller file.`);
   }
-  setStatus(`Uploading ${payload.name}...`);
+  setStatus(`Ready: ${payload.name}`);
   document.body.classList.add("busy");
   try {
     const data = await api(`/upload?name=${encodeURIComponent(payload.name)}&type=${encodeURIComponent(payload.type || "application/octet-stream")}`, {
@@ -553,7 +633,8 @@ async function uploadFile(file) {
       headers: { "Content-Type": payload.type || "application/octet-stream" },
       body: payload,
     });
-    setStatus("Uploaded");
+    const n = state.pendingFiles.size;
+    setStatus(n ? `${n} file(s) ready ? click Publish` : "Ready ? click Publish");
     return data.url;
   } finally {
     document.body.classList.remove("busy");
@@ -670,7 +751,7 @@ $("portrait-file").onchange = (event) =>
   onUpload(event.target, async ([file]) => {
     if (!file) return;
     state.content.site.portrait = await uploadFile(file);
-    $("portrait-preview").src = state.content.site.portrait;
+    $("portrait-preview").src = mediaSrc(state.content.site.portrait);
   });
 
 $("cv-file").onchange = (event) =>
@@ -685,7 +766,7 @@ $("p-cover").onchange = (event) =>
     if (!file) return;
     const project = state.content.projects[state.projectIndex];
     project.cover = await uploadFile(file);
-    $("p-cover-preview").src = project.cover;
+    $("p-cover-preview").src = mediaSrc(project.cover);
     project.plate = false;
     $("p-plate").checked = false;
   });
@@ -693,7 +774,8 @@ $("p-cover").onchange = (event) =>
 $("p-images").onchange = (event) =>
   onUpload(event.target, async (files) => {
     const project = state.content.projects[state.projectIndex];
-    for (const file of files) project.images.push(await uploadFile(file));
+    const urls = await Promise.all([...files].map((file) => uploadFile(file)));
+    project.images.push(...urls);
     renderGallery(project);
   });
 
@@ -722,12 +804,22 @@ $("publish").onclick = async () => {
   if (state.projectIndex >= 0 && $("sheet").open) readProjectFields();
   state.content.skills.marqueeA = splitList($("skills-a").value);
   state.content.skills.marqueeB = splitList($("skills-b").value);
-  setStatus("Publishing…");
+  const pending = state.pendingFiles.size;
+  setStatus(pending ? `Publishing ${pending + 1} files...` : "Publishing...");
+  document.body.classList.add("busy");
+  const started = performance.now();
   try {
     await api("/content", { method: "PUT", body: state.content });
-    setStatus(state.mode === "github" ? "Saved. The live site updates in about a minute." : "Live");
+    const ms = Math.round(performance.now() - started);
+    setStatus(
+      state.mode === "github"
+        ? `Saved in ${ms}ms. Live content updates in a few seconds.`
+        : "Live",
+    );
   } catch (error) {
     setStatus(error.message);
+  } finally {
+    document.body.classList.remove("busy");
   }
 };
 

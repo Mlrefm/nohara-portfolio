@@ -1,11 +1,24 @@
 import "./styles.css";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const RAW_PUBLIC = "https://raw.githubusercontent.com/Mlrefm/nohara-portfolio/main/public";
+
+/** Prefer raw.githubusercontent so Studio publishes appear in seconds, not after Pages rebuild. */
 const asset = (p) => {
   if (!p) return p;
-  if (/^https?:\/\//.test(p)) return p;
-  if (p.startsWith("/")) return BASE + p;
-  return `${BASE}/${p}`;
+  if (/^https?:\/\//.test(p) || p.startsWith("blob:")) return p;
+  const path = p.startsWith("/") ? p : `/${p}`;
+  if (
+    path.startsWith("/uploads/") ||
+    path.startsWith("/stills/") ||
+    path.startsWith("/clips/") ||
+    path === "/portrait.jpeg" ||
+    /\.pdf$/i.test(path)
+  ) {
+    return `${RAW_PUBLIC}${path}`;
+  }
+  if (path.startsWith("/")) return BASE + path;
+  return `${BASE}/${path}`;
 };
 
 let projects = [];
@@ -16,21 +29,23 @@ let words = ["Architect", "Architectural Designer", "AI in Architecture Research
 async function loadContent() {
   const urls = [];
   if (import.meta.env.VITE_ADMIN_API) urls.push(`${import.meta.env.VITE_ADMIN_API.replace(/\/$/, "")}/content`);
+  let owner = "Mlrefm";
+  let repo = "nohara-portfolio";
+  let branch = "main";
   try {
     const config = await fetch(`${BASE}/admin-config.json`, { cache: "no-store" });
     if (config.ok) {
       const data = await config.json();
       if (data.api) urls.unshift(`${String(data.api).replace(/\/$/, "")}/content`);
-      if (data.github?.owner && data.github?.repo) {
-        const branch = data.github.branch || "main";
-        urls.push(
-          `https://raw.githubusercontent.com/${data.github.owner}/${data.github.repo}/${branch}/public/content.json`,
-        );
-      }
+      if (data.github?.owner) owner = data.github.owner;
+      if (data.github?.repo) repo = data.github.repo;
+      if (data.github?.branch) branch = data.github.branch;
     }
   } catch {
-    /* static file is enough */
+    /* defaults are fine */
   }
+  // Raw first: updates show seconds after Publish, without waiting for Pages.
+  urls.push(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/public/content.json?t=${Date.now()}`);
   urls.push(`${BASE}/content.json`);
   for (const url of urls) {
     try {
