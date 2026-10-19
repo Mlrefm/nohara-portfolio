@@ -1,0 +1,166 @@
+{
+  "site": {
+    "name": "Nohara Yousif Odeesh",
+    "nameHtml": "Nohara<br />Yousif Odeesh",
+    "eyebrow": "Architect · Architectural Designer",
+    "roles": ["Architect", "Architectural Designer", "AI in Architecture Researcher"],
+    "lede": "Architecture graduate of Catholic University in Erbil, 2026, with a focus on design, spatial reasoning, and visualization. Presented original research on artificial intelligence in architecture at Walsh University in Ohio.",
+    "portrait": "portrait.jpeg",
+    "portraitAlt": "Nohara Yousif Odeesh in the studio, holding a hard hat in front of a presentation board",
+    "portraitCaption": "Nohara Yousif Odeesh · Architect · Duhok",
+    "cv": "Nohara-Odeesh-CV.pdf",
+    "email": "Nuhara86@gmail.com",
+    "phone": "+964 751 532 4421",
+    "phoneHref": "tel:+9647515324421",
+    "linkedin": "https://linkedin.com/in/nohara-odeesh",
+    "instagram": "https://instagram.com/_THE_NEXT_VISION_",
+    "location": "Nohara Yousif Odeesh · Duhok, Kurdistan Region",
+    "hudLabel": "Architecture · Duhok",
+    "workLede": "Pick a card to read the concept, see the renders, and watch the camera move through the design."
+  },
+  "experience": [
+    {
+      "when": "June 2026",
+      "title": "Bachelor of Architecture",
+      "place": "Catholic University in Erbil",
+      "text": "Academic projects include the Traditional Fashion House graduation project in Duhok, the Ankawa City urban development study, and educational buildings."
+    },
+    {
+      "when": "Internship · 2 months",
+      "title": "Architectural intern",
+      "place": "Lazgin Construction Company · Aram City and Opera Land",
+      "text": "Coordination drawings for live sites, resolving gaps between the documents and the site with engineers and contractors, and following construction against the drawings."
+    },
+    {
+      "when": "Walsh University · Ohio",
+      "title": "Researcher and speaker",
+      "place": "Artificial Intelligence in Architecture",
+      "text": "Presented original research on AI in design generation, planning, and architectural innovation, and authored the paper under the same title."
+    }
+  ],
+  "skills": {
+    "marqueeA": ["AutoCAD", "Revit", "SketchUp", "3ds Max", "Enscape", "V-Ray", "Lumion", "Photoshop", "Illustrator"],
+    "marqueeB": ["AI rendering", "AI concept generation", "Design", "Spatial reasoning", "Visualization", "Syriac", "Arabic", "English", "Turkish", "Kurdish"],
+    "groups": [
+      { "title": "Design and drafting", "text": "AutoCAD, Revit, SketchUp, 3ds Max" },
+      { "title": "Visualization", "text": "Enscape, V-Ray, Lumion, Photoshop, Illustrator" },
+      { "title": "AI in architecture", "text": "AI rendering and AI concept generation, certified" },
+      { "title": "Languages", "text": "Syriac, Arabic, English, Turkish, Kurdish" }
+    ]
+  },
+  "projects": [
+    {
+      "id": "hotel",
+      "title": "Hotel",
+      "kind": "Hospitality",
+      "year": "2024",
+      "cover": "/stills/hotel-approach.jpg",
+      "text": "A hotel inspired by the palm tree and the ancient Ziggurat of Ur. The building rises in shifted levels and stepped terraces, with palm-shaped columns carrying the base and a long colonnade leading guests in.",
+      "facts": [
+        ["Year", "2024"],
+        ["Tools", "Revit"],
+        ["Concept", "Palm tree and the Ziggurat of Ur"]
+      ],
+      "videos": [
+        { "src": "/clips/01-hotel-approach.mp4", "start": 0, "poster": "/stills/hotel-approach.jpg" },
+        { "src": "/clips/02-hotel-massing.mp4", "start": 10, "poster": "/stills/hotel-massing.jpg" }
+      ],
+      "images": ["/stills/hotel-approach.jpg", "/stills/hotel-massing.jpg", "/stills/hotel-side.jpg"],
+      "documents": []
+    },
+    {
+      "id": "riverline",
+      "title": "The Riverline Complex",
+      "kind": "Residential",
+      "year": "2024",
+      "cover": "/stills/riverline-1.jpg",
+      "text": "Modern apartments arranged for light, ventilation, privacy, and community, with a view of the river and its gardens. White towers are linked by lattice pedestrian bridges that turn circulation into a promenade.",
+      "facts": [
+        ["Year", "2024"],
+        ["Type", "Residential complex"],
+        ["Idea", "Light, ventilation, privacy, community"]
+      ],
+      "videos": [{ "src": "/clips/03-residential-skybridge.mp4", "start": 20, "poster": "/stills/riverline-1.jpg" }],
+      "images": ["/stills/riverline-1.jpg", "/stills/riverline-2.jpg", "/stills/riverline-3.jpg", "/stills/riverline-4.jpg"],
+      "documents": []
+    },
+    {
+      "id": "hope-hospital",
+      "title": "Hope Hospital",
+      "kind": "Healthcare",
+      "year": "2025",
+      "cover": "/stills/hope-street.jpg",
+      "text": "A pediatric hospital planned as a calm place for children and their families. Courtyards and daylight soften the clinical program, and a clear circulation keeps public rooms apart from treatment areas.",
+      "facts": [
+        ["Year", "2025"],
+        ["Tools", "AutoCAD, SketchUp"],
+        ["Type", "Pediatric hospital"]
+      ],
+      "images": ["/stills/hope-street.jpg", "/stills/hope-court.jpg", "/stills/hope-axis.jpg"],
+      "documents": []
+    },
+    {
+      "id": "home-interior",
+      "title": "Home Interior",
+      "kind": "Interior",
+      "year": "2024",
+      "cover": "/stills/interior-living.jpg",
+      "text": "A modern minimalist house interior. Contemporary in tone, with focus lighting, shelf lighting, and one open volume for living, dining, and the kitchen.",
+      "facts": [
+        ["Year", "2024"],
+        ["Tools", "SketchUp"],
+        ["Style", "Modern minimalist"]
+      ],
+      "images": ["/stills/interior-living.jpg", "/stills/interior-evening.jpg", "/stills/interior-kitchen.jpg", "/stills/interior-detail.jpg"],
+      "documents": []
+    },
+    {
+      "id": "fashion-house",
+      "title": "Traditional Fashion House",
+      "kind": "Graduation project",
+      "year": "Duhok",
+      "plate": true,
+      "lines": "Four acts in one building: learning, creating, exhibiting, and selling.",
+      "text": "Graduation project at Catholic University in Erbil, sited in Duhok. The programme follows four acts, learning, creating, exhibiting, and selling, and the board carries the site analysis, sections, elevations, and renders.",
+      "facts": [
+        ["Site", "Duhok"],
+        ["Concept", "Learning, creating, exhibiting, selling"],
+        ["School", "Catholic University in Erbil"]
+      ],
+      "images": [],
+      "documents": []
+    },
+    {
+      "id": "landscape",
+      "title": "Landscape",
+      "kind": "Public landscape",
+      "year": "2025",
+      "plate": true,
+      "lines": "Ten hectares that move from a modern edge, through a palm grove, into a heritage garden.",
+      "text": "A landscape of ten hectares. The sequence moves from a modern entrance, through palm planting, to a heritage garden, so the visitor walks from the present toward the region's past.",
+      "facts": [
+        ["Year", "2025"],
+        ["Area", "10 hectares"],
+        ["Sequence", "Modern, palm, heritage"]
+      ],
+      "images": [],
+      "documents": []
+    },
+    {
+      "id": "business-center",
+      "title": "Business Center",
+      "kind": "Commercial",
+      "year": "2023",
+      "plate": true,
+      "lines": "A glass office block under an angular canopy, modelled in Revit.",
+      "text": "A business center with a glass envelope and an angular canopy marking the entrance. Modelled in Revit as an early study of structure and skin.",
+      "facts": [
+        ["Year", "2023"],
+        ["Tools", "Revit"],
+        ["Envelope", "Glass with angular canopy"]
+      ],
+      "images": [],
+      "documents": []
+    }
+  ]
+}

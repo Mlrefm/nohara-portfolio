@@ -25,7 +25,7 @@
         <a href="#work">Work</a>
         <a href="#contact">Contact</a>
       </nav>
-      <a class="pill" href="Nohara-Odeesh-CV.pdf" download>CV</a>
+      <a class="pill" id="cv-nav" href="Nohara-Odeesh-CV.pdf" download>CV</a>
     </header>
 
     <nav class="rail" aria-label="On this page" id="rail">
@@ -41,7 +41,7 @@
         <div class="intro-sticky">
           <div class="hud" aria-hidden="true">
             <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
-            <p class="hud-label">Architecture · Duhok</p>
+            <p class="hud-label" id="hud-label">Architecture · Duhok</p>
             <p class="hud-count"><span id="hud-percent">0</span>%</p>
             <p class="callout left" id="callout-left"><b></b><span></span></p>
             <p class="callout right" id="callout-right"><b></b><span></span></p>
@@ -57,24 +57,24 @@
 
       <section class="about" id="about">
         <div class="about-copy">
-          <p class="eyebrow">Architect · Architectural Designer</p>
-          <h2 class="display">Nohara<br />Yousif Odeesh</h2>
+          <p class="eyebrow" id="site-eyebrow">Architect · Architectural Designer</p>
+          <h2 class="display" id="site-name">Nohara<br />Yousif Odeesh</h2>
           <p class="rotate" aria-live="polite"><span id="rotate-word">Architect</span></p>
-          <p class="lede reveal">
+          <p class="lede reveal" id="site-lede">
             Architecture graduate of Catholic University in Erbil, 2026, with a focus on design,
             spatial reasoning, and visualization. Presented original research on artificial
             intelligence in architecture at Walsh University in Ohio.
           </p>
           <div class="actions">
             <a class="btn" href="#work">View work</a>
-            <a class="btn ghost" href="Nohara-Odeesh-CV.pdf" download>Download CV</a>
+            <a class="btn ghost" id="cv-btn" href="Nohara-Odeesh-CV.pdf" download>Download CV</a>
           </div>
         </div>
         <figure class="portrait-wrap">
           <div class="portrait-card" id="portrait">
-            <img src="portrait.jpeg" alt="Nohara Yousif Odeesh in the studio, holding a hard hat in front of a presentation board" />
+            <img id="portrait-img" src="portrait.jpeg" alt="Nohara Yousif Odeesh in the studio, holding a hard hat in front of a presentation board" />
           </div>
-          <figcaption>Nohara Yousif Odeesh · Architect · Duhok</figcaption>
+          <figcaption id="portrait-caption">Nohara Yousif Odeesh · Architect · Duhok</figcaption>
         </figure>
       </section>
 
@@ -119,7 +119,7 @@
         <div class="marquee reverse" aria-label="Methods and languages">
           <div class="marquee-track" id="marquee-b"></div>
         </div>
-        <div class="skill-groups">
+        <div class="skill-groups" id="skill-groups">
           <div>
             <h3>Design and drafting</h3>
             <p>AutoCAD, Revit, SketchUp, 3ds Max</p>
@@ -141,7 +141,7 @@
 
       <section class="work" id="work">
         <h2>Selected work</h2>
-        <p class="work-lede reveal">
+        <p class="work-lede reveal" id="work-lede">
           Pick a card to read the concept, see the renders, and watch the camera move through
           the design.
         </p>
@@ -155,13 +155,13 @@
 
       <section class="contact" id="contact">
         <h2>Contact</h2>
-        <a class="mail" href="mailto:Nuhara86@gmail.com">Nuhara86@gmail.com</a>
+        <a class="mail" id="mail" href="mailto:Nuhara86@gmail.com">Nuhara86@gmail.com</a>
         <p class="links">
-          <a href="tel:+9647515324421">+964 751 532 4421</a>
-          <a href="https://linkedin.com/in/nohara-odeesh">LinkedIn</a>
-          <a href="https://instagram.com/_THE_NEXT_VISION_">Instagram</a>
+          <a id="phone" href="tel:+9647515324421">+964 751 532 4421</a>
+          <a id="linkedin" href="https://linkedin.com/in/nohara-odeesh">LinkedIn</a>
+          <a id="instagram" href="https://instagram.com/_THE_NEXT_VISION_">Instagram</a>
         </p>
-        <p class="foot">Nohara Yousif Odeesh · Duhok, Kurdistan Region</p>
+        <p class="foot" id="foot">Nohara Yousif Odeesh · Duhok, Kurdistan Region</p>
       </section>
     </main>
 
@@ -178,6 +178,7 @@
           <p class="detail-text" id="detail-text"></p>
           <dl class="detail-facts" id="detail-facts"></dl>
           <div class="detail-thumbs" id="detail-thumbs"></div>
+          <div class="detail-docs" id="detail-docs"></div>
         </div>
       </div>
     </dialog>

@@ -1,0 +1,15 @@
+{
+  "name": "nohara-cms",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-20",
+  "observability": {
+    "enabled": true,
+    "traces": { "enabled": true }
+  },
+  "vars": {
+    "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173,https://mlrefm.github.io",
+    "GITHUB_OWNER": "Mlrefm",
+    "GITHUB_REPO": "nohara-portfolio",
+    "GITHUB_BRANCH": "main"
+  }
+}

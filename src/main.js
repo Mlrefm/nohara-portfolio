@@ -1,134 +1,53 @@
 import "./styles.css";
 
-const projects = [
-  {
-    title: "Hotel",
-    kind: "Hospitality",
-    year: "2024",
-    cover: "/stills/hotel-approach.jpg",
-    text: "A hotel inspired by the palm tree and the ancient Ziggurat of Ur. The building rises in shifted levels and stepped terraces, with palm-shaped columns carrying the base and a long colonnade leading guests in.",
-    facts: [
-      ["Year", "2024"],
-      ["Tools", "Revit"],
-      ["Concept", "Palm tree and the Ziggurat of Ur"],
-    ],
-    videos: [
-      { src: "/clips/01-hotel-approach.mp4", start: 0, poster: "/stills/hotel-approach.jpg" },
-      { src: "/clips/02-hotel-massing.mp4", start: 10, poster: "/stills/hotel-massing.jpg" },
-    ],
-    images: ["/stills/hotel-approach.jpg", "/stills/hotel-massing.jpg", "/stills/hotel-side.jpg"],
-  },
-  {
-    title: "The Riverline Complex",
-    kind: "Residential",
-    year: "2024",
-    cover: "/stills/riverline-1.jpg",
-    text: "Modern apartments arranged for light, ventilation, privacy, and community, with a view of the river and its gardens. White towers are linked by lattice pedestrian bridges that turn circulation into a promenade.",
-    facts: [
-      ["Year", "2024"],
-      ["Type", "Residential complex"],
-      ["Idea", "Light, ventilation, privacy, community"],
-    ],
-    videos: [{ src: "/clips/03-residential-skybridge.mp4", start: 20, poster: "/stills/riverline-1.jpg" }],
-    images: ["/stills/riverline-1.jpg", "/stills/riverline-2.jpg", "/stills/riverline-3.jpg", "/stills/riverline-4.jpg"],
-  },
-  {
-    title: "Hope Hospital",
-    kind: "Healthcare",
-    year: "2025",
-    cover: "/stills/hope-street.jpg",
-    text: "A pediatric hospital planned as a calm place for children and their families. Courtyards and daylight soften the clinical program, and a clear circulation keeps public rooms apart from treatment areas.",
-    facts: [
-      ["Year", "2025"],
-      ["Tools", "AutoCAD, SketchUp"],
-      ["Type", "Pediatric hospital"],
-    ],
-    images: ["/stills/hope-street.jpg", "/stills/hope-court.jpg", "/stills/hope-axis.jpg"],
-  },
-  {
-    title: "Home Interior",
-    kind: "Interior",
-    year: "2024",
-    cover: "/stills/interior-living.jpg",
-    text: "A modern minimalist house interior. Contemporary in tone, with focus lighting, shelf lighting, and one open volume for living, dining, and the kitchen.",
-    facts: [
-      ["Year", "2024"],
-      ["Tools", "SketchUp"],
-      ["Style", "Modern minimalist"],
-    ],
-    images: ["/stills/interior-living.jpg", "/stills/interior-evening.jpg", "/stills/interior-kitchen.jpg", "/stills/interior-detail.jpg"],
-  },
-  {
-    title: "Traditional Fashion House",
-    kind: "Graduation project",
-    year: "Duhok",
-    plate: true,
-    lines: "Four acts in one building: learning, creating, exhibiting, and selling.",
-    text: "Graduation project at Catholic University in Erbil, sited in Duhok. The programme follows four acts, learning, creating, exhibiting, and selling, and the board carries the site analysis, sections, elevations, and renders.",
-    facts: [
-      ["Site", "Duhok"],
-      ["Concept", "Learning, creating, exhibiting, selling"],
-      ["School", "Catholic University in Erbil"],
-    ],
-    images: [],
-  },
-  {
-    title: "Landscape",
-    kind: "Public landscape",
-    year: "2025",
-    plate: true,
-    lines: "Ten hectares that move from a modern edge, through a palm grove, into a heritage garden.",
-    text: "A landscape of ten hectares. The sequence moves from a modern entrance, through palm planting, to a heritage garden, so the visitor walks from the present toward the region's past.",
-    facts: [
-      ["Year", "2025"],
-      ["Area", "10 hectares"],
-      ["Sequence", "Modern, palm, heritage"],
-    ],
-    images: [],
-  },
-  {
-    title: "Business Center",
-    kind: "Commercial",
-    year: "2023",
-    plate: true,
-    lines: "A glass office block under an angular canopy, modelled in Revit.",
-    text: "A business center with a glass envelope and an angular canopy marking the entrance. Modelled in Revit as an early study of structure and skin.",
-    facts: [
-      ["Year", "2023"],
-      ["Tools", "Revit"],
-      ["Envelope", "Glass with angular canopy"],
-    ],
-    images: [],
-  },
-];
-
-// Resolve asset paths against Vite's base so the site also works under a sub-path (GitHub Pages).
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const asset = (p) => (p && p.startsWith("/") ? BASE + p : p);
-for (const project of projects) {
-  project.cover = asset(project.cover);
-  project.images = project.images.map(asset);
-  if (project.videos) {
-    for (const clip of project.videos) {
-      clip.src = asset(clip.src);
-      clip.poster = asset(clip.poster);
+const asset = (p) => {
+  if (!p) return p;
+  if (/^https?:\/\//.test(p)) return p;
+  if (p.startsWith("/")) return BASE + p;
+  return `${BASE}/${p}`;
+};
+
+let projects = [];
+let skillsA = [];
+let skillsB = [];
+let words = ["Architect", "Architectural Designer", "AI in Architecture Researcher"];
+
+async function loadContent() {
+  const urls = [];
+  if (import.meta.env.VITE_ADMIN_API) urls.push(`${import.meta.env.VITE_ADMIN_API.replace(/\/$/, "")}/content`);
+  try {
+    const config = await fetch(`${BASE}/admin-config.json`);
+    if (config.ok) {
+      const data = await config.json();
+      if (data.api) urls.unshift(`${String(data.api).replace(/\/$/, "")}/content`);
+    }
+  } catch {
+    /* static file is enough */
+  }
+  urls.push(`${BASE}/content.json`);
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok) return await res.json();
+    } catch {
+      /* try next */
     }
   }
+  return null;
 }
 
-const skillsA = ["AutoCAD", "Revit", "SketchUp", "3ds Max", "Enscape", "V-Ray", "Lumion", "Photoshop", "Illustrator"];
-const skillsB = [
-  "AI rendering",
-  "AI concept generation",
-  "Design",
-  "Spatial reasoning",
-  "Visualization",
-  "Syriac",
-  "Arabic",
-  "English",
-  "Turkish",
-  "Kurdish",
-];
+function applyMedia(project) {
+  project.cover = asset(project.cover);
+  project.images = (project.images || []).map(asset);
+  project.videos = (project.videos || []).map((clip) => ({
+    ...clip,
+    src: asset(clip.src),
+    poster: asset(clip.poster),
+  }));
+  project.documents = (project.documents || []).map((doc) => ({ ...doc, src: asset(doc.src) }));
+  return project;
+}
 
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
@@ -527,11 +446,11 @@ function updateChapter(progress) {
 
 /* Rotating word */
 
-const words = ["Architect", "Architectural Designer", "AI in Architecture Researcher"];
 let wordIndex = 0;
 const rotateBox = $("#rotate-word").parentElement;
 if (!reduced) {
   window.setInterval(() => {
+    if (!words.length) return;
     wordIndex = (wordIndex + 1) % words.length;
     const span = document.createElement("span");
     span.textContent = words[wordIndex];
@@ -539,20 +458,22 @@ if (!reduced) {
   }, 2600);
 }
 
-/* Word-by-word reveal */
-
-document.querySelectorAll(".reveal").forEach((element) => {
-  const parts = element.textContent.trim().split(/\s+/);
-  element.replaceChildren(
-    ...parts.map((word, index) => {
-      const span = document.createElement("span");
-      span.style.setProperty("--i", String(index));
-      span.textContent = word;
-      return span;
-    }),
-  );
-  element.classList.add("scroll-words");
-});
+function revealWords() {
+  document.querySelectorAll(".reveal").forEach((element) => {
+    if (element.dataset.revealed) return;
+    const parts = element.textContent.trim().split(/\s+/);
+    element.replaceChildren(
+      ...parts.map((word, index) => {
+        const span = document.createElement("span");
+        span.style.setProperty("--i", String(index));
+        span.textContent = word;
+        return span;
+      }),
+    );
+    element.classList.add("scroll-words");
+    element.dataset.revealed = "1";
+  });
+}
 
 /* Portrait tilt */
 
@@ -569,20 +490,15 @@ if (finePointer && !reduced) {
   });
 }
 
-/* Timeline focus */
-
-const timelineItems = [...document.querySelectorAll("#timeline li")];
 const timelineObserver = new IntersectionObserver(
   (entries) => {
+    const items = [...document.querySelectorAll("#timeline li")];
     for (const entry of entries) {
-      if (entry.isIntersecting) {
-        timelineItems.forEach((item) => item.classList.toggle("is-current", item === entry.target));
-      }
+      if (entry.isIntersecting) items.forEach((item) => item.classList.toggle("is-current", item === entry.target));
     }
   },
   { rootMargin: "-30% 0px -50% 0px", threshold: 0 },
 );
-timelineItems.forEach((item) => timelineObserver.observe(item));
 
 /* Marquees */
 
@@ -595,24 +511,27 @@ function fillMarquee(track, items) {
     }),
   );
 }
-fillMarquee($("#marquee-a"), skillsA);
-fillMarquee($("#marquee-b"), skillsB);
-
-/* Fan carousel */
-
-let active = Math.floor(projects.length / 2);
-let fanPos = active;
+let active = 0;
+let fanPos = 0;
 let drag = null;
 let suppressClick = false;
+let cards = [];
+let dotButtons = [];
 
-const cards = projects.map((project, index) => {
+function buildFan() {
+  fan.replaceChildren();
+  dots.replaceChildren();
+  active = Math.floor(projects.length / 2);
+  fanPos = active;
+  cards = projects.map((project, index) => {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = `card${project.plate ? " plate" : ""}`;
+  const plate = project.plate || !project.cover;
+  button.className = `card${plate ? " plate" : ""}`;
   button.setAttribute("role", "listitem");
   button.setAttribute("aria-label", `Open ${project.title}`);
   const number = String(index + 1).padStart(2, "0");
-  if (project.plate) {
+  if (plate) {
     button.innerHTML = `<span class="frame"></span><span class="num">${number}</span><span class="copy"><span class="kind">${project.kind}</span><strong>${project.title}</strong><span class="rule"></span><em>${project.year}</em></span><span class="lines">${project.lines}</span>`;
   } else {
     button.innerHTML = `<img alt="" src="${project.cover}" draggable="false" ${project.pos ? `style="object-position:${project.pos}"` : ""} /><span class="shade"></span><span class="num">${number}</span><span class="copy"><span class="kind">${project.kind}</span><strong>${project.title}</strong><span class="rule"></span><em>${project.year}</em></span>`;
@@ -632,16 +551,18 @@ const cards = projects.map((project, index) => {
   });
   fan.append(button);
   return button;
-});
+  });
 
-const dotButtons = projects.map((project, index) => {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.setAttribute("aria-label", `Show ${project.title}`);
-  button.addEventListener("click", () => setActive(index));
-  dots.append(button);
-  return button;
-});
+  dotButtons = projects.map((project, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("aria-label", `Show ${project.title}`);
+    button.addEventListener("click", () => setActive(index));
+    dots.append(button);
+    return button;
+  });
+  layoutFan();
+}
 
 function layoutFan() {
   const count = cards.length;
@@ -784,7 +705,7 @@ function openProject(index, card) {
   stopVideo();
   still.src = project.cover || (project.images[0] ?? "");
   still.style.objectPosition = project.pos || "";
-  const textOnly = !project.cover && project.images.length === 0 && !project.videos;
+  const textOnly = !project.cover && !(project.images || []).length && !(project.videos || []).length;
   detailMedia.hidden = textOnly;
   dialog.classList.toggle("text-only", textOnly);
 
@@ -794,7 +715,21 @@ function openProject(index, card) {
   dialog.style.setProperty("--ox", `${rect.left + rect.width / 2 - box.left}px`);
   dialog.style.setProperty("--oy", `${rect.top + rect.height / 2 - box.top}px`);
   dialog.scrollTop = 0;
-  if (project.videos && !reduced) playClips(project.videos);
+  const docs = $("#detail-docs");
+  const files = project.documents || [];
+  docs.hidden = files.length === 0;
+  docs.replaceChildren(
+    ...files.map((doc) => {
+      const link = document.createElement("a");
+      link.href = doc.src;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = doc.name || "Document";
+      return link;
+    }),
+  );
+
+  if (project.videos && project.videos.length && !reduced) playClips(project.videos);
 }
 
 $("#close").addEventListener("click", () => dialog.close());
@@ -855,5 +790,83 @@ function tick(time) {
   requestAnimationFrame(tick);
 }
 
-layoutFan();
+function applySite(data) {
+  if (!data) return;
+  const site = data.site || {};
+  if (site.hudLabel) $("#hud-label").textContent = site.hudLabel;
+  if (site.eyebrow) $("#site-eyebrow").textContent = site.eyebrow;
+  if (site.nameHtml) $("#site-name").innerHTML = site.nameHtml;
+  if (site.lede) $("#site-lede").textContent = site.lede;
+  if (site.roles?.length) {
+    words = site.roles;
+    $("#rotate-word").textContent = words[0];
+  }
+  if (site.portrait) {
+    const img = $("#portrait-img");
+    img.src = asset(site.portrait);
+    img.alt = site.portraitAlt || site.name || "";
+  }
+  if (site.portraitCaption) $("#portrait-caption").textContent = site.portraitCaption;
+  const cv = site.cv ? asset(site.cv) : "";
+  if (cv) {
+    $("#cv-nav").href = cv;
+    $("#cv-btn").href = cv;
+  }
+  if (site.email) {
+    $("#mail").href = `mailto:${site.email}`;
+    $("#mail").textContent = site.email;
+  }
+  if (site.phone) {
+    $("#phone").href = site.phoneHref || `tel:${site.phone.replace(/\s+/g, "")}`;
+    $("#phone").textContent = site.phone;
+  }
+  if (site.linkedin) $("#linkedin").href = site.linkedin;
+  if (site.instagram) $("#instagram").href = site.instagram;
+  if (site.location) $("#foot").textContent = site.location;
+  if (site.workLede) $("#work-lede").textContent = site.workLede;
+
+  if (data.experience) {
+    $("#timeline").replaceChildren(
+      ...data.experience.map((item) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<p class="when"></p><h3></h3><p class="place"></p><p class="reveal"></p>`;
+        li.querySelector(".when").textContent = item.when || "";
+        li.querySelector("h3").textContent = item.title || "";
+        li.querySelector(".place").textContent = item.place || "";
+        li.querySelector(".reveal").textContent = item.text || "";
+        return li;
+      }),
+    );
+    document.querySelectorAll("#timeline li").forEach((item) => timelineObserver.observe(item));
+  }
+
+  if (data.skills) {
+    skillsA = data.skills.marqueeA || [];
+    skillsB = data.skills.marqueeB || [];
+    fillMarquee($("#marquee-a"), skillsA);
+    fillMarquee($("#marquee-b"), skillsB);
+    if (data.skills.groups) {
+      $("#skill-groups").replaceChildren(
+        ...data.skills.groups.map((group) => {
+          const div = document.createElement("div");
+          div.innerHTML = `<h3></h3><p></p>`;
+          div.querySelector("h3").textContent = group.title || "";
+          div.querySelector("p").textContent = group.text || "";
+          return div;
+        }),
+      );
+    }
+  }
+
+  projects = (data.projects || []).map(applyMedia);
+  buildFan();
+  revealWords();
+}
+
+async function boot() {
+  const data = await loadContent();
+  applySite(data);
+}
+
+boot();
 requestAnimationFrame(tick);

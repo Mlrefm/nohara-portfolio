@@ -1294,6 +1294,31 @@ dialog.text-only .detail {
   object-fit: cover;
 }
 
+.detail-docs {
+  --d: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1.2rem;
+}
+
+.detail-docs:empty,
+.detail-docs[hidden] {
+  display: none;
+}
+
+.detail-docs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 0.9rem;
+  border: 1px solid var(--gold-dim);
+  border-radius: 999px;
+  color: var(--gold-2);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+}
+
 .detail-thumbs .play {
   position: absolute;
   inset: 0;
