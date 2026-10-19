@@ -195,8 +195,11 @@ async function githubApi(path, options = {}) {
     if (fails.length >= 8) throw new Error("Too many attempts. Try again in a few minutes.");
     const body = options.body;
     try {
-      if (body.username !== state.lock.user) throw new Error("bad");
-      state.pat = await unwrapToken(body.password, state.lock);
+      if (!state.lock) throw new Error("bad");
+      const username = String(body.username || "").trim();
+      const password = String(body.password || "");
+      if (username.toLowerCase() !== String(state.lock.user || "").toLowerCase()) throw new Error("bad");
+      state.pat = await unwrapToken(password, state.lock);
     } catch {
       fails.push(Date.now());
       sessionStorage.setItem(FAIL_KEY, JSON.stringify(fails));
@@ -581,7 +584,7 @@ $("gate").addEventListener("submit", async (event) => {
   try {
     const data = await api("/login", {
       method: "POST",
-      body: { username: $("user").value, password: $("pass").value },
+      body: { username: $("user").value.trim(), password: $("pass").value },
     });
     state.token = data.token;
     sessionStorage.setItem(TOKEN_KEY, data.token);
